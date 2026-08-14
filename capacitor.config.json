@@ -1,0 +1,6 @@
+{
+  "appId": "com.aura.musicdownloader",
+  "appName": "AURA Music Studio",
+  "webDir": "public",
+  "bundledWebRuntime": false
+}
