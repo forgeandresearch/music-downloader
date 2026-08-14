@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURA // Personal Music Studio & Car Audio Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AURA // Mobile Audio Studio & Car Player</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,7 +12,125 @@
 </head>
 <body>
   <div class="app-container" id="app">
-    <!-- Mobile Bottom Navigation Bar -->
+    <!-- Top Mobile Navigation Header -->
+    <header class="top-header">
+      <div class="brand">
+        <div class="brand-icon"><i class="fa-solid fa-compact-disc fa-spin-slow"></i></div>
+        <div class="brand-name">AURA <span>STUDIO</span></div>
+      </div>
+      <div class="header-actions">
+        <button class="car-mode-btn" id="toggleCarModeBtn">
+          <i class="fa-solid fa-car-side"></i> Car Mode
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="main-content">
+      <!-- TAB: Music Library -->
+      <section class="tab-content active" id="tab-library">
+        <div class="section-title-bar">
+          <div>
+            <h2>Music Library</h2>
+            <p>Downloaded offline tracks</p>
+          </div>
+          <div class="stats-pill" id="trackCountPill">0 Tracks</div>
+        </div>
+
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" placeholder="Search title or artist...">
+        </div>
+
+        <div class="songs-grid" id="songsGrid">
+          <!-- Dynamically populated songs -->
+        </div>
+      </section>
+
+      <!-- TAB: Downloader -->
+      <section class="tab-content" id="tab-downloader">
+        <div class="downloader-hero-card">
+          <div class="hero-badge"><i class="fa-brands fa-youtube"></i> YouTube & YouTube Music</div>
+          <h1>Audio Link Extractor</h1>
+          <p>Paste any song or video link below to extract studio audio format</p>
+          
+          <div class="link-input-box">
+            <i class="fa-solid fa-link"></i>
+            <input type="text" id="directUrlInput" placeholder="Paste YouTube link here...">
+            <button id="fetchLinkInfoBtn" class="btn-glow">Inspect Link</button>
+          </div>
+
+          <div class="format-chips">
+            <span class="chip active"><i class="fa-solid fa-file-audio"></i> MP3 320k</span>
+            <span class="chip"><i class="fa-solid fa-gem"></i> FLAC</span>
+            <span class="chip"><i class="fa-solid fa-music"></i> M4A / AAC</span>
+            <span class="chip"><i class="fa-solid fa-sliders"></i> WAV</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: AI Playlists -->
+      <section class="tab-content" id="tab-ai-playlists">
+        <div class="section-title-bar">
+          <div>
+            <h2>Offline AI Playlists</h2>
+            <p>Smart tag & acoustic auto-clustering</p>
+          </div>
+          <button class="stats-pill" id="refreshAiBtn" style="cursor: pointer; background: rgba(99,102,241,0.2); color: #fff;">
+            <i class="fa-solid fa-rotate-right"></i> Refresh
+          </button>
+        </div>
+
+        <div class="playlists-grid" id="aiPlaylistsGrid">
+          <!-- Dynamically populated AI playlists -->
+        </div>
+      </section>
+
+      <!-- TAB: Playlists -->
+      <section class="tab-content" id="tab-playlists">
+        <div class="section-title-bar">
+          <div>
+            <h2>Custom Playlists</h2>
+            <p>User track compilations</p>
+          </div>
+        </div>
+
+        <div class="playlists-grid" id="userPlaylistsGrid">
+          <!-- Dynamically populated user playlists -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Fixed Player Dock -->
+    <footer class="player-dock" id="playerDock">
+      <div class="dock-track-info">
+        <div class="dock-thumb" id="dockThumb">
+          <i class="fa-solid fa-music"></i>
+        </div>
+        <div class="dock-meta">
+          <div class="dock-title" id="dockTitle">Select a track</div>
+          <div class="dock-artist" id="dockArtist">AURA Player</div>
+        </div>
+      </div>
+
+      <div class="dock-controls">
+        <div class="control-buttons">
+          <button class="ctrl-btn" id="prevBtn"><i class="fa-solid fa-backward-step"></i></button>
+          <button class="ctrl-btn main-play-btn" id="playPauseBtn"><i class="fa-solid fa-play"></i></button>
+          <button class="ctrl-btn" id="nextBtn"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+
+        <div class="progress-container">
+          <span class="time" id="currentTime">0:00</span>
+          <div class="progress-bar-wrapper" id="progressWrapper">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <span class="time" id="durationTime">0:00</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Fixed Mobile Bottom Navigation -->
     <nav class="mobile-bottom-nav">
       <button class="mobile-nav-item active" data-tab="library">
         <i class="fa-solid fa-music"></i>
@@ -31,217 +149,49 @@
         <span>Playlists</span>
       </button>
     </nav>
-
-    <!-- Sidebar Navigation for Desktop/Tablet -->
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="brand-icon"><i class="fa-solid fa-compact-disc fa-spin-slow"></i></div>
-        <div class="brand-name">AURA <span>MOBILE</span></div>
-      </div>
-
-      <nav class="nav-menu">
-        <button class="nav-item active" data-tab="library">
-          <i class="fa-solid fa-music"></i>
-          <span>Library</span>
-        </button>
-        <button class="nav-item" data-tab="downloader">
-          <i class="fa-solid fa-cloud-arrow-down"></i>
-          <span>Downloader</span>
-        </button>
-        <button class="nav-item" data-tab="ai-playlists">
-          <i class="fa-solid fa-wand-magic-sparkles"></i>
-          <span>AI Playlists</span>
-        </button>
-        <button class="nav-item" data-tab="playlists">
-          <i class="fa-solid fa-list-check"></i>
-          <span>My Playlists</span>
-        </button>
-      </nav>
-
-      <div class="car-mode-trigger-wrapper">
-        <button class="car-mode-btn" id="toggleCarModeBtn">
-          <i class="fa-solid fa-car-side"></i>
-          <span>Car Mode Dashboard</span>
-        </button>
-      </div>
-
-      <div class="privacy-badge">
-        <i class="fa-solid fa-shield-halved"></i> 100% Offline & Private Mobile App
-      </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <main class="main-content">
-      <!-- Header -->
-      <header class="top-header">
-        <div class="search-bar">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="text" id="searchInput" placeholder="Search tracks, artists, or audio format...">
-        </div>
-        <div class="header-actions">
-          <button class="action-btn-primary" id="openDownloadModalBtn">
-            <i class="fa-solid fa-plus"></i> New Track
-          </button>
-        </div>
-      </header>
-
-      <!-- TAB: Music Library -->
-      <section class="tab-content active" id="tab-library">
-        <div class="section-title-bar">
-          <div>
-            <h2>Local Music Library</h2>
-            <p>Downloaded high-fidelity audio tracks stored on device</p>
-          </div>
-          <div class="stats-pill" id="trackCountPill">0 Tracks</div>
-        </div>
-
-        <div class="songs-grid" id="songsGrid">
-          <!-- Dynamically populated songs -->
-        </div>
-      </section>
-
-      <!-- TAB: Downloader Paste Section -->
-      <section class="tab-content" id="tab-downloader">
-        <div class="downloader-hero-card">
-          <div class="hero-badge"><i class="fa-brands fa-youtube"></i> YouTube & YouTube Music Supported</div>
-          <h1>Download High-Fidelity Audio</h1>
-          <p>Paste any YouTube or YouTube Music track URL below to extract studio audio with customized output format.</p>
-          
-          <div class="link-input-box">
-            <i class="fa-solid fa-link"></i>
-            <input type="text" id="directUrlInput" placeholder="https://music.youtube.com/watch?v=... or https://youtu.be/...">
-            <button id="fetchLinkInfoBtn" class="btn-glow">Extract & Download</button>
-          </div>
-
-          <div class="format-chips">
-            <span class="chip active"><i class="fa-solid fa-file-audio"></i> MP3 320kbps</span>
-            <span class="chip"><i class="fa-solid fa-gem"></i> FLAC Lossless</span>
-            <span class="chip"><i class="fa-solid fa-music"></i> M4A / AAC</span>
-            <span class="chip"><i class="fa-solid fa-sliders"></i> WAV Pure</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB: AI Playlists -->
-      <section class="tab-content" id="tab-ai-playlists">
-        <div class="section-title-bar">
-          <div>
-            <h2>Offline AI Smart Playlists</h2>
-            <p>On-device heuristic and tag-vector clustering auto-generates mood playlists</p>
-          </div>
-          <button class="action-btn-secondary" id="refreshAiBtn">
-            <i class="fa-solid fa-rotate-right"></i> Regenerate AI Playlists
-          </button>
-        </div>
-
-        <div class="playlists-grid" id="aiPlaylistsGrid">
-          <!-- Dynamically populated AI playlists -->
-        </div>
-      </section>
-
-      <!-- TAB: My Playlists -->
-      <section class="tab-content" id="tab-playlists">
-        <div class="section-title-bar">
-          <div>
-            <h2>Custom Playlists</h2>
-            <p>User created custom track compilations</p>
-          </div>
-          <button class="action-btn-primary" id="createPlaylistBtn">
-            <i class="fa-solid fa-folder-plus"></i> Create Playlist
-          </button>
-        </div>
-
-        <div class="playlists-grid" id="userPlaylistsGrid">
-          <!-- Dynamically populated user playlists -->
-        </div>
-      </section>
-    </main>
-
-    <!-- Bottom Audio Player Dock -->
-    <footer class="player-dock" id="playerDock">
-      <div class="dock-track-info">
-        <div class="dock-thumb" id="dockThumb">
-          <i class="fa-solid fa-music"></i>
-        </div>
-        <div class="dock-meta">
-          <div class="dock-title" id="dockTitle">Select a track</div>
-          <div class="dock-artist" id="dockArtist">AURA Studio Player</div>
-        </div>
-      </div>
-
-      <div class="dock-controls">
-        <div class="control-buttons">
-          <button class="ctrl-btn" id="shuffleBtn" title="Shuffle"><i class="fa-solid fa-shuffle"></i></button>
-          <button class="ctrl-btn" id="prevBtn" title="Previous"><i class="fa-solid fa-backward-step"></i></button>
-          <button class="ctrl-btn main-play-btn" id="playPauseBtn" title="Play/Pause"><i class="fa-solid fa-play"></i></button>
-          <button class="ctrl-btn" id="nextBtn" title="Next"><i class="fa-solid fa-forward-step"></i></button>
-          <button class="ctrl-btn" id="repeatBtn" title="Repeat"><i class="fa-solid fa-repeat"></i></button>
-        </div>
-
-        <div class="progress-container">
-          <span class="time" id="currentTime">0:00</span>
-          <div class="progress-bar-wrapper" id="progressWrapper">
-            <div class="progress-bar" id="progressBar"></div>
-          </div>
-          <span class="time" id="durationTime">0:00</span>
-        </div>
-      </div>
-
-      <div class="dock-extra">
-        <i class="fa-solid fa-volume-high"></i>
-        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
-        <button class="car-pill-badge" id="dockCarBtn"><i class="fa-solid fa-car"></i> Dashboard Mode</button>
-      </div>
-    </footer>
   </div>
 
   <!-- Download Link Modal -->
   <div class="modal-overlay" id="downloadModal">
-    <div class="modal-content glass-card">
+    <div class="modal-content">
       <button class="modal-close" id="closeModalBtn">&times;</button>
-      <h3 class="modal-title"><i class="fa-solid fa-download"></i> Song Download Options</h3>
+      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 16px;">Download Options</h3>
       
-      <div class="meta-preview" id="modalMetaPreview">
-        <div class="skeleton-line"></div>
-        <div class="skeleton-line short"></div>
-      </div>
+      <div id="modalMetaPreview" style="margin-bottom: 16px;"></div>
 
-      <div class="form-group">
-        <label for="formatSelect">Target Audio Format:</label>
+      <div style="margin-bottom: 16px;">
+        <label for="formatSelect" style="font-size: 12px; color: var(--text-muted);">Audio Format:</label>
         <select id="formatSelect" class="styled-select">
-          <option value="mp3" selected>MP3 (High Quality 320kbps) - Recommended</option>
-          <option value="flac">FLAC (Lossless Studio Quality)</option>
-          <option value="m4a">M4A / AAC (Apple Compatible)</option>
-          <option value="wav">WAV (Uncompressed PCM)</option>
-          <option value="opus">OPUS (Ultra Efficient Streaming)</option>
+          <option value="mp3" selected>MP3 (320kbps High Quality)</option>
+          <option value="flac">FLAC (Lossless)</option>
+          <option value="m4a">M4A / AAC</option>
+          <option value="wav">WAV (Uncompressed)</option>
+          <option value="opus">OPUS Stream</option>
         </select>
       </div>
 
-      <div class="download-progress-box hidden" id="downloadProgressBox">
-        <div class="spinner"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
-        <span id="downloadStatusText">Downloading and converting track...</span>
+      <div class="hidden" id="downloadProgressBox" style="text-align: center; margin: 12px 0; color: var(--accent-neon);">
+        <i class="fa-solid fa-circle-notch fa-spin"></i> Downloading and converting...
       </div>
 
       <div class="modal-actions">
         <button class="btn-cancel" id="cancelDownloadBtn">Cancel</button>
-        <button class="btn-glow" id="startDownloadBtn"><i class="fa-solid fa-arrow-down"></i> Download Track</button>
+        <button class="btn-glow" id="startDownloadBtn">Download Track</button>
       </div>
     </div>
   </div>
 
-  <!-- Fullscreen Car Mode Dashboard overlay -->
+  <!-- Car Mode Dashboard -->
   <div class="car-mode-overlay hidden" id="carModeDashboard">
     <button class="car-exit-btn" id="exitCarModeBtn"><i class="fa-solid fa-xmark"></i> Exit Car Mode</button>
 
     <div class="car-content-center">
-      <div class="car-album-art" id="carArt">
+      <div class="car-album-art">
         <i class="fa-solid fa-music"></i>
       </div>
       
-      <div class="car-track-details">
-        <h1 class="car-title" id="carTitle">Ready for the Road</h1>
-        <h3 class="car-artist" id="carArtist">Tap Play to Start</h3>
-      </div>
+      <div class="car-title" id="carTitle">Ready for the Road</div>
+      <div class="car-artist" id="carArtist">Tap Play to Start</div>
 
       <div class="car-progress-wrapper" id="carProgressWrapper">
         <div class="car-progress-bar" id="carProgressBar"></div>

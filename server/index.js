@@ -55,32 +55,72 @@ function isValidUrl(string) {
   }
 }
 
-// 1. Fetch info for URL
-app.post('/api/info', (req, res) => {
+// Helper to extract YouTube video ID
+function extractVideoId(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    if (url.hostname.includes('youtu.be')) return url.pathname.slice(1);
+    if (url.hostname.includes('youtube.com')) {
+      if (url.pathname.includes('/watch')) return url.searchParams.get('v');
+      if (url.pathname.includes('/shorts/')) return url.pathname.split('/shorts/')[1];
+    }
+  } catch (e) {}
+  const match = urlStr.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  return match ? match[1] : null;
+}
+
+// 1. Fetch info for URL (Fast & Reliable)
+app.post('/api/info', async (req, res) => {
   const { url } = req.body;
   if (!url || !isValidUrl(url)) {
-    return res.status(400).json({ error: 'Please provide a valid YouTube or YouTube Music link.' });
+    return res.status(400).json({ error: 'Please enter a valid YouTube or YouTube Music link.' });
   }
 
-  const cmd = `"${YTDLP_BIN}" --dump-json --no-playlist "${url}"`;
-  exec(cmd, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
-    if (error) {
-      console.error('Info Error:', stderr);
-      return res.status(500).json({ error: 'Failed to extract song metadata. Please verify the URL.' });
+  const videoId = extractVideoId(url);
+  const cleanUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : url;
+
+  // 1. Try yt-dlp first
+  const cmd = `"${YTDLP_BIN}" --dump-json --no-playlist "${cleanUrl}"`;
+  exec(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 15000 }, (error, stdout) => {
+    if (!error && stdout) {
+      try {
+        const data = JSON.parse(stdout);
+        return res.json({
+          id: data.id || videoId,
+          title: data.title || data.fulltitle || 'Unknown Track Title',
+          artist: data.artist || data.uploader || data.channel || 'YouTube Audio',
+          thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          duration: data.duration || 0,
+          formats: ['MP3', 'FLAC (Lossless)', 'M4A (AAC)', 'WAV', 'OPUS']
+        });
+      } catch (e) {}
     }
-    try {
-      const data = JSON.parse(stdout);
-      res.json({
-        id: data.id,
-        title: data.title || data.fulltitle || 'Unknown Title',
-        artist: data.artist || data.uploader || data.channel || 'Unknown Artist',
-        thumbnail: data.thumbnail || (data.thumbnails && data.thumbnails[0] ? data.thumbnails[0].url : ''),
-        duration: data.duration || 0,
-        formats: ['MP3', 'FLAC (Lossless)', 'M4A (AAC)', 'WAV', 'OPUS']
+
+    // 2. Fallback to YouTube oEmbed API if yt-dlp is slow or blocked
+    const https = require('https');
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`;
+
+    https.get(oembedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (apiRes) => {
+      let body = '';
+      apiRes.on('data', chunk => body += chunk);
+      apiRes.on('end', () => {
+        try {
+          const meta = JSON.parse(body);
+          return res.json({
+            id: videoId || 'track-' + Date.now(),
+            title: meta.title || 'YouTube Music Track',
+            artist: meta.author_name || 'YouTube Artist',
+            thumbnail: meta.thumbnail_url || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : ''),
+            duration: 0,
+            formats: ['MP3', 'FLAC (Lossless)', 'M4A (AAC)', 'WAV', 'OPUS']
+          });
+        } catch (err) {
+          return res.status(500).json({ error: 'Failed to inspect link. Please check your internet connection.' });
+        }
       });
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to parse video info.' });
-    }
+    }).on('error', () => {
+      res.status(500).json({ error: 'Network error inspecting link.' });
+    });
   });
 });
 
