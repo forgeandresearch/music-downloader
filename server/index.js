@@ -69,8 +69,8 @@ function extractVideoId(urlStr) {
   return match ? match[1] : null;
 }
 
-// 1. Fetch info for URL (Fast & Reliable)
-app.post('/api/info', async (req, res) => {
+// 1. Fetch info for URL (Instant Metadata Lookup via oEmbed)
+app.post('/api/info', (req, res) => {
   const { url } = req.body;
   if (!url || !isValidUrl(url)) {
     return res.status(400).json({ error: 'Please enter a valid YouTube or YouTube Music link.' });
@@ -79,48 +79,46 @@ app.post('/api/info', async (req, res) => {
   const videoId = extractVideoId(url);
   const cleanUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : url;
 
-  // 1. Try yt-dlp first
-  const cmd = `"${YTDLP_BIN}" --dump-json --no-playlist "${cleanUrl}"`;
-  exec(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 15000 }, (error, stdout) => {
-    if (!error && stdout) {
+  const https = require('https');
+  const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`;
+
+  https.get(oembedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (apiRes) => {
+    let body = '';
+    apiRes.on('data', chunk => body += chunk);
+    apiRes.on('end', () => {
       try {
-        const data = JSON.parse(stdout);
+        const meta = JSON.parse(body);
         return res.json({
-          id: data.id || videoId,
-          title: data.title || data.fulltitle || 'Unknown Track Title',
-          artist: data.artist || data.uploader || data.channel || 'YouTube Audio',
-          thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-          duration: data.duration || 0,
+          id: videoId || 'track-' + Date.now(),
+          title: meta.title || 'YouTube Track',
+          artist: meta.author_name || 'YouTube Artist',
+          thumbnail: meta.thumbnail_url || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : ''),
+          duration: 0,
           formats: ['MP3', 'FLAC (Lossless)', 'M4A (AAC)', 'WAV', 'OPUS']
         });
-      } catch (e) {}
-    }
-
-    // 2. Fallback to YouTube oEmbed API if yt-dlp is slow or blocked
-    const https = require('https');
-    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`;
-
-    https.get(oembedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (apiRes) => {
-      let body = '';
-      apiRes.on('data', chunk => body += chunk);
-      apiRes.on('end', () => {
-        try {
-          const meta = JSON.parse(body);
-          return res.json({
-            id: videoId || 'track-' + Date.now(),
-            title: meta.title || 'YouTube Music Track',
-            artist: meta.author_name || 'YouTube Artist',
-            thumbnail: meta.thumbnail_url || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : ''),
-            duration: 0,
-            formats: ['MP3', 'FLAC (Lossless)', 'M4A (AAC)', 'WAV', 'OPUS']
-          });
-        } catch (err) {
-          return res.status(500).json({ error: 'Failed to inspect link. Please check your internet connection.' });
-        }
-      });
-    }).on('error', () => {
-      res.status(500).json({ error: 'Network error inspecting link.' });
+      } catch (err) {
+        // Fallback to yt-dlp if oembed parse fails
+        const cmd = `"${YTDLP_BIN}" --dump-json --no-playlist "${cleanUrl}"`;
+        exec(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 10000 }, (error, stdout) => {
+          if (!error && stdout) {
+            try {
+              const data = JSON.parse(stdout);
+              return res.json({
+                id: data.id || videoId,
+                title: data.title || data.fulltitle || 'YouTube Music Track',
+                artist: data.artist || data.uploader || data.channel || 'YouTube Artist',
+                thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+                duration: data.duration || 0,
+                formats: ['MP3', 'FLAC (Lossless)', 'M4A (AAC)', 'WAV', 'OPUS']
+              });
+            } catch (e) {}
+          }
+          return res.status(500).json({ error: 'Could not fetch song metadata. Please check the URL.' });
+        });
+      }
     });
+  }).on('error', () => {
+    res.status(500).json({ error: 'Network error inspecting link.' });
   });
 });
 

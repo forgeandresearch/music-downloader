@@ -315,10 +315,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   refreshAiBtn.addEventListener('click', loadAiPlaylists);
 
-  // 6. Car Mode Toggle
-  toggleCarModeBtn.addEventListener('click', () => carModeDashboard.classList.remove('hidden'));
-  dockCarBtn.addEventListener('click', () => carModeDashboard.classList.remove('hidden'));
-  exitCarModeBtn.addEventListener('click', () => carModeDashboard.classList.add('hidden'));
+  // 6. Car Mode Toggle Logic
+  if (toggleCarModeBtn) {
+    toggleCarModeBtn.addEventListener('click', () => {
+      carModeDashboard.classList.remove('hidden');
+    });
+  }
+  if (dockCarBtn) {
+    dockCarBtn.addEventListener('click', () => {
+      carModeDashboard.classList.remove('hidden');
+    });
+  }
+  if (exitCarModeBtn) {
+    exitCarModeBtn.addEventListener('click', () => {
+      carModeDashboard.classList.add('hidden');
+    });
+  }
 
   // Initial loads
   loadSongs();
