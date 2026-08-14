@@ -154,18 +154,35 @@ dom.navBtns.forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
+function extractCleanUrl(text) {
+  if (!text || typeof text !== 'string') return '';
+  const trimmed = text.trim();
+  const m = trimmed.match(/(https?:\/\/[^\s"'<>]+)/i);
+  if (m) return m[1];
+  return trimmed;
+}
+
 // ─────────────────────────────────────────
 //  PASTE
 // ─────────────────────────────────────────
 dom.pasteBtn.addEventListener('click', async () => {
   try {
     const text = await navigator.clipboard.readText();
-    dom.urlInput.value = text.trim();
-    dom.urlInput.dispatchEvent(new Event('input'));
+    if (text) {
+      dom.urlInput.value = extractCleanUrl(text);
+      dom.urlInput.dispatchEvent(new Event('input'));
+      inspectLink();
+    }
   } catch (_) {
     dom.urlInput.focus();
     document.execCommand('paste');
   }
+});
+
+dom.urlInput.addEventListener('paste', () => {
+  setTimeout(() => {
+    dom.urlInput.value = extractCleanUrl(dom.urlInput.value);
+  }, 50);
 });
 
 // ─────────────────────────────────────────
@@ -175,7 +192,11 @@ dom.inspectBtn.addEventListener('click', inspectLink);
 dom.urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') inspectLink(); });
 
 async function inspectLink() {
-  const url = dom.urlInput.value.trim();
+  const raw = dom.urlInput.value.trim();
+  const url = extractCleanUrl(raw);
+  if (url && url !== raw) {
+    dom.urlInput.value = url;
+  }
   if (!url) {
     showStatus('Please paste a YouTube link first.', 'error');
     return;

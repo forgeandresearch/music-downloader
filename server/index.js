@@ -11,6 +11,8 @@ const PORT = 3005;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.text({ type: ['text/plain', 'text/*'] }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 const DOWNLOADS_DIR = path.join(__dirname, '../downloads');
@@ -42,17 +44,19 @@ console.log('yt-dlp path:', YTDLP);
 console.log('ffmpeg path:', FFMPEG);
 
 // ---------- HELPERS ----------
-function isValidYouTubeUrl(u) {
-  try {
-    const url = new URL(u);
-    return (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) &&
-           (url.protocol === 'http:' || url.protocol === 'https:');
-  } catch (_) { return false; }
-}
-
 function extractVideoId(u) {
+  if (!u || typeof u !== 'string') return null;
+  const str = u.trim();
+  // If user passed just the 11 character ID directly
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    return str;
+  }
+  // Regex to extract video ID from any YouTube / YouTube Music URL (or text containing a URL)
+  const m = str.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/|music\.youtube\.com\/watch\?(?:.*&)?v=))([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+
   try {
-    const url = new URL(u);
+    const url = new URL(str);
     if (url.hostname.includes('youtu.be')) return url.pathname.slice(1).split('?')[0];
     if (url.hostname.includes('youtube.com')) {
       if (url.pathname.startsWith('/watch')) return url.searchParams.get('v');
@@ -60,8 +64,48 @@ function extractVideoId(u) {
       if (url.pathname.includes('/embed/')) return url.pathname.split('/embed/')[1].split('?')[0];
     }
   } catch (_) {}
-  const m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/|music\.youtube\.com\/watch\?v=))([\w-]{11})/);
-  return m ? m[1] : null;
+  return null;
+}
+
+function isValidYouTubeUrl(u) {
+  return !!extractVideoId(u);
+}
+
+function extractUrlAndFormat(req) {
+  let url = '';
+  let format = 'mp3';
+
+  // 1. Query parameters (GET or POST ?url=...&format=...)
+  if (req.query) {
+    if (req.query.url) url = req.query.url;
+    else if (req.query.link) url = req.query.link;
+    else if (req.query.q) url = req.query.q;
+    if (req.query.format) format = req.query.format;
+  }
+
+  // 2. Request body if JSON / urlencoded object
+  if (!url && req.body && typeof req.body === 'object') {
+    url = req.body.url || req.body.link || req.body.videoUrl || req.body.query || '';
+    if (req.body.format) format = req.body.format;
+  }
+
+  // 3. Request body if raw string / direct link
+  if (!url && typeof req.body === 'string' && req.body.trim()) {
+    try {
+      const parsed = JSON.parse(req.body);
+      if (parsed && typeof parsed === 'object') {
+        url = parsed.url || parsed.link || '';
+        if (parsed.format) format = parsed.format;
+      }
+    } catch (_) {
+      url = req.body.trim();
+    }
+  }
+
+  return {
+    url: (url || '').trim(),
+    format: (format || 'mp3').trim().toLowerCase()
+  };
 }
 
 function httpsGet(url) {
@@ -75,15 +119,14 @@ function httpsGet(url) {
   });
 }
 
-// ---------- API: /api/info ----------
-// Strategy: oEmbed first (instant), then yt-dlp fallback
-app.post('/api/info', async (req, res) => {
-  const { url } = req.body;
-  if (!url || !isValidYouTubeUrl(url.trim())) {
+// ---------- API: /api/info (Supports POST JSON, POST raw link, GET ?url=...) ----------
+app.all('/api/info', async (req, res) => {
+  const { url } = extractUrlAndFormat(req);
+  if (!url || !isValidYouTubeUrl(url)) {
     return res.status(400).json({ error: 'Please enter a valid YouTube or YouTube Music link.' });
   }
 
-  const videoId = extractVideoId(url.trim());
+  const videoId = extractVideoId(url);
   if (!videoId) return res.status(400).json({ error: 'Could not extract video ID from the URL.' });
 
   const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -108,7 +151,7 @@ app.post('/api/info', async (req, res) => {
   // Fallback: yt-dlp
   exec(`"${YTDLP}" --dump-json --no-playlist "${cleanUrl}"`, { timeout: 20000, maxBuffer: 5 * 1024 * 1024 }, (err, stdout) => {
     if (err || !stdout) {
-      // Last resort: just return what we know from the URL
+      // Last resort: return metadata derived from URL
       return res.json({
         id: videoId,
         title: 'YouTube Track',
@@ -134,17 +177,17 @@ app.post('/api/info', async (req, res) => {
   });
 });
 
-// ---------- API: /api/download ----------
-app.post('/api/download', (req, res) => {
-  let { url, format } = req.body;
-  if (!url || !isValidYouTubeUrl(url.trim())) {
+// ---------- API: /api/download (Supports POST JSON, POST raw link, GET ?url=...&format=...) ----------
+app.all('/api/download', (req, res) => {
+  let { url, format } = extractUrlAndFormat(req);
+  if (!url || !isValidYouTubeUrl(url)) {
     return res.status(400).json({ error: 'Invalid YouTube URL.' });
   }
 
   const safeFormats = ['mp3', 'flac', 'm4a', 'wav', 'opus'];
   format = safeFormats.includes(format) ? format : 'mp3';
 
-  const videoId = extractVideoId(url.trim());
+  const videoId = extractVideoId(url);
   const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const outputTemplate = path.join(DOWNLOADS_DIR, '%(title)s.%(ext)s');
 
